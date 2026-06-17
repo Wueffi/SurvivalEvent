@@ -14,12 +14,21 @@ import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 import wueffi.survivalEvent.commands.EventCommands;
 
+import java.util.*;
+
 public final class PlaytimeScoreboard {
 
     private static final long TICK_INTERVAL = 20L;
+    private static final int SNAPSHOT_INTERVAL = 500;
+    private static final int VIEW_COUNT = 3;
 
     private static JavaPlugin plugin;
     private static BukkitTask updateTask;
+
+    private static int tickCounter = 0;
+    private static int viewIndex = 0;
+    private static Map<String, Integer> globalItemTotals = new LinkedHashMap<>();
+    private static Map<UUID, Integer> playerPointsSnapshot = new LinkedHashMap<>();
 
     private PlaytimeScoreboard() {}
 
@@ -43,28 +52,98 @@ public final class PlaytimeScoreboard {
             World world = Bukkit.getWorld("world2");
             if (world == null) return;
 
+            tickCounter++;
+            if (tickCounter == 1 || tickCounter % SNAPSHOT_INTERVAL == 0) {
+                refreshSnapshot(world);
+            }
+            if (tickCounter > 1 && tickCounter % 5 == 0) {
+                viewIndex = (viewIndex + 1) % VIEW_COUNT;
+            }
+
             for (Player player : world.getPlayers()) {
                 update(player);
             }
         }, TICK_INTERVAL, TICK_INTERVAL);
     }
 
+    private static void refreshSnapshot(World world) {
+        plugin.getLogger().info("Scanning World!");
+        globalItemTotals = ItemReportTask.scanWorld(world);
+        playerPointsSnapshot.clear();
+        for (Player player : world.getPlayers()) {
+            playerPointsSnapshot.put(player.getUniqueId(), ItemReportTask.getPlayerPoints(player));
+        }
+    }
+
     public static void update(Player player) {
         Scoreboard board = player.getScoreboard();
-        for (Objective obj : board.getObjectives()) {
-            obj.unregister();
+        if (board.equals(Bukkit.getScoreboardManager().getMainScoreboard())) {
+            board = Bukkit.getScoreboardManager().getNewScoreboard();
         }
 
-        Objective obj = board.registerNewObjective("playtime", Criteria.DUMMY, Component.text("Survival Event").color(NamedTextColor.GOLD).decorate(TextDecoration.BOLD));
+        new ArrayList<>(board.getObjectives()).forEach(Objective::unregister);
+
+        Component title = switch (viewIndex) {
+            case 0 -> Component.text("Leaderboard").color(NamedTextColor.GOLD).decorate(TextDecoration.BOLD);
+            case 1 -> Component.text("Top Items").color(NamedTextColor.AQUA).decorate(TextDecoration.BOLD);
+            case 2 -> Component.text("Rare Items").color(NamedTextColor.RED).decorate(TextDecoration.BOLD);
+            default -> Component.text("Survival Event").color(NamedTextColor.GOLD).decorate(TextDecoration.BOLD);
+        };
+
+        Objective obj = board.registerNewObjective("playtime", Criteria.DUMMY, title);
         obj.setDisplaySlot(DisplaySlot.SIDEBAR);
 
         long secondsLeft = Math.max(0L, 7200 - PlaytimeManager.getSecondsToday(player));
+        int pts = playerPointsSnapshot.getOrDefault(player.getUniqueId(), 0);
 
-        obj.getScore(" ").setScore(3);
-        obj.getScore("§7Time left today:").setScore(2);
+        obj.getScore(" ").setScore(0);
         obj.getScore("§a" + EventCommands.formatSeconds(secondsLeft)).setScore(1);
-        obj.getScore("  ").setScore(0);
+        obj.getScore("§7Time left:").setScore(2);
+        obj.getScore("  ").setScore(3);
+        obj.getScore("§e" + pts + " pts").setScore(4);
+        obj.getScore("§7Your points:").setScore(5);
+        obj.getScore("§8──────────────").setScore(6);
+
+        switch (viewIndex) {
+            case 0 -> buildLeaderboard(obj, 7);
+            case 1 -> buildMostCollected(obj, 7);
+            case 2 -> buildLeastCollected(obj, 7);
+        }
 
         player.setScoreboard(board);
+    }
+
+    private static void buildLeaderboard(Objective obj, int base) {
+        List<Map.Entry<UUID, Integer>> sorted = new ArrayList<>(playerPointsSnapshot.entrySet());
+        sorted.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+        int count = Math.min(sorted.size(), 5);
+        String[] prefix = {"§6#1 ", "§7#2 ", "§c#3 ", "§f#4 ", "§f#5 "};
+        for (int i = 0; i < count; i++) {
+            Map.Entry<UUID, Integer> e = sorted.get(i);
+            Player p = Bukkit.getPlayer(e.getKey());
+            String name = p != null ? p.getName() : "?";
+            obj.getScore(prefix[i] + "§f" + name + " §e" + e.getValue()).setScore(base + count - 1 - i);
+        }
+    }
+
+    private static void buildMostCollected(Objective obj, int base) {
+        List<Map.Entry<String, Integer>> sorted = new ArrayList<>(globalItemTotals.entrySet());
+        sorted.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+        int count = Math.min(sorted.size(), 5);
+        for (int i = 0; i < count; i++) {
+            Map.Entry<String, Integer> e = sorted.get(i);
+            obj.getScore("§b#" + i + " " + e.getKey() + "§7: §f" + e.getValue()).setScore(base + count - 1 - i);
+        }
+    }
+
+    private static void buildLeastCollected(Objective obj, int base) {
+        List<Map.Entry<String, Integer>> entries = new ArrayList<>(globalItemTotals.entrySet());
+        entries.removeIf(e -> e.getValue() < 1);
+        entries.sort(Map.Entry.comparingByValue());
+        int count = Math.min(entries.size(), 5);
+        for (int i = count; i >= 0; i--) {
+            Map.Entry<String, Integer> e = entries.get(i);
+            obj.getScore("§c#" + i + " " + e.getKey() + "§7: §f" + e.getValue()).setScore(base + count - 1 - i);
+        }
     }
 }

@@ -19,11 +19,18 @@ public final class SurvivalEvent extends JavaPlugin {
         if (WorldSetup.setup()) LOGGER.info("Succesfully set up worlds!");
         else LOGGER.info("Failed to set up worlds!");
 
+        ContainerHandler.init(this);
+        Bukkit.getPluginManager().registerEvents(new ContainerListener(), this);
+        LOGGER.info("ContainerHandler initialized!");
+
         PlaytimeManager.init(this);
         LOGGER.info("PlaytimeManager initialized!");
 
         PlaytimeScoreboard.init(this);
         LOGGER.info("PlaytimeScoreboard initialized!");
+
+        ItemReportTask.init(this);
+        LOGGER.info("ItemReportTask initialized!");
 
         LocationHandler.init(this);
         Bukkit.getPluginManager().registerEvents(new LocationListener(this), this);
@@ -48,5 +55,8 @@ public final class SurvivalEvent extends JavaPlugin {
 
         PlaytimeScoreboard.shutdown();
         LOGGER.info("PlaytimeScoreBoard shutdown!");
+
+        ItemReportTask.shutdown();
+        LOGGER.info("ItemReportTask shutdown!");
     }
 }
