@@ -2,7 +2,7 @@ name: SurvivalEvent
 version: '1.0-SNAPSHOT'
 main: wueffi.survivalEvent.SurvivalEvent
 api-version: '1.21'
-load: STARTUP
+load: POSTWORLD
 authors: [ "Waffle [Wueffi]" ]
 description: Plugin for the 1000x1000 Map Survival Event
 
@@ -14,8 +14,8 @@ commands:
     description: Check another player's playtime.
     usage: /check <player>
   start:
-    description: Start the survival event.
+    description: Start playing the survival event.
     usage: /start
   end:
-    description: End the survival event and show results.
+    description: End playing the survival event.
     usage: /end

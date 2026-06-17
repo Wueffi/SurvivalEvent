@@ -1,11 +1,11 @@
 package wueffi.survivalEvent;
 
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import wueffi.survivalEvent.commands.EventCommands;
-import wueffi.survivalEvent.utils.PlaytimeManager;
-import wueffi.survivalEvent.utils.WorldSetup;
+import wueffi.survivalEvent.utils.*;
 
 import java.util.List;
 
@@ -21,6 +21,13 @@ public final class SurvivalEvent extends JavaPlugin {
 
         PlaytimeManager.init(this);
         LOGGER.info("PlaytimeManager initialized!");
+
+        PlaytimeScoreboard.init(this);
+        LOGGER.info("PlaytimeScoreboard initialized!");
+
+        LocationHandler.init(this);
+        Bukkit.getPluginManager().registerEvents(new LocationListener(this), this);
+        LOGGER.info("LocationHandler initialized!");
 
         EventCommands handler = new EventCommands();
         for (String cmd : List.of("playtime", "check", "start", "end")) {
@@ -38,5 +45,8 @@ public final class SurvivalEvent extends JavaPlugin {
 
         PlaytimeManager.shutdown();
         LOGGER.info("PlaytimeManager shutdown!");
+
+        PlaytimeScoreboard.shutdown();
+        LOGGER.info("PlaytimeScoreBoard shutdown!");
     }
 }

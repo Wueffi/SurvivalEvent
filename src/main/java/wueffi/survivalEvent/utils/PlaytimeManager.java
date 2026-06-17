@@ -81,7 +81,7 @@ public final class PlaytimeManager {
 
                 playerDates.put(uuid, todayStr);
                 secondsToday.merge(uuid, 1L, Long::sum);
-                if (secondsToday.get(uuid) >= 3600) {
+                if (secondsToday.get(uuid) >= 7200) {
                     World spawnWorld = Bukkit.getWorld("world");
 
                     if (spawnWorld == null) {

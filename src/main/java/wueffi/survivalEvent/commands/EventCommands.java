@@ -1,12 +1,14 @@
 package wueffi.survivalEvent.commands;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import wueffi.survivalEvent.utils.LocationHandler;
 import wueffi.survivalEvent.utils.PlaytimeManager;
 
 import java.util.List;
@@ -51,26 +53,36 @@ public final class EventCommands implements CommandExecutor, TabCompleter {
     }
 
     private boolean handleStart(CommandSender sender) {
-        long seconds = PlaytimeManager.getSecondsToday(((Player) sender).getUniqueId());
-        if (seconds >= 3600) {
+        Player player = ((Player) sender);
+        long seconds = PlaytimeManager.getSecondsToday(player.getUniqueId());
+        if (seconds >= 7200) {
             sender.sendMessage("§cYou have already used up your time for today. Come back tomorrow!");
+            return true;
         }
         sender.sendMessage("§eYou have §a" + formatSeconds(seconds) + "§e used today!");
 
-        World world = Bukkit.getWorld("world2");
+        Location spawnLocation = LocationHandler.loadLocation(player);
+        if (spawnLocation == null) {
+            World world = Bukkit.getWorld("world2");
 
-        if (world == null) {
-            return false;
+            if (world == null) {
+                return false;
+            }
+
+            player.teleport(world.getSpawnLocation());
+        } else {
+            player.teleport(spawnLocation);
         }
-
-        ((Player) sender).teleport(world.getSpawnLocation()); //TODO: Move to original position not spawn position
 
         return true;
     }
 
     private boolean handleEnd(CommandSender sender) {
-        long seconds = PlaytimeManager.getSecondsToday(((Player) sender).getUniqueId());
+        Player player = ((Player) sender);
+        long seconds = PlaytimeManager.getSecondsToday(player.getUniqueId());
         sender.sendMessage("§eYou have §a" + formatSeconds(seconds) + "§e used today!");
+
+        LocationHandler.saveLocation(player);
 
         World world = Bukkit.getWorld("world");
 
@@ -78,7 +90,7 @@ public final class EventCommands implements CommandExecutor, TabCompleter {
             return false;
         }
 
-        ((Player) sender).teleport(world.getSpawnLocation());
+        player.teleport(world.getSpawnLocation());
 
         return true;
     }
@@ -93,7 +105,7 @@ public final class EventCommands implements CommandExecutor, TabCompleter {
                 .collect(Collectors.toList());
     }
 
-    private static String formatSeconds(long total) {
+    public static String formatSeconds(long total) {
         return String.format("%dh %02dm %02ds", total / 3600, (total % 3600) / 60, total % 60);
     }
 }
