@@ -17,8 +17,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class ItemReportTask {
@@ -27,16 +26,20 @@ public final class ItemReportTask {
     private static final LinkedHashMap<String, Material> TRACKED = new LinkedHashMap<>();
 
     static {
-        TRACKED.put("wood", Material.OAK_LOG);
-        TRACKED.put("stone", Material.COBBLESTONE);
-        TRACKED.put("gold", Material.GOLD_INGOT);
-        TRACKED.put("door", Material.OAK_DOOR);
-        TRACKED.put("planks", Material.OAK_PLANKS);
-        TRACKED.put("button", Material.OAK_BUTTON);
-        TRACKED.put("fence", Material.OAK_FENCE);
-        TRACKED.put("chest boat", Material.OAK_CHEST_BOAT);
-        TRACKED.put("hanging sign", Material.OAK_HANGING_SIGN);
-        TRACKED.put("boat", Material.OAK_BOAT);
+        TRACKED.put("Amethyst Shard", Material.AMETHYST_SHARD);
+        TRACKED.put("Coal", Material.COAL);
+        TRACKED.put("Copper Ingot", Material.COPPER_INGOT);
+        TRACKED.put("Diamond", Material.DIAMOND);
+        TRACKED.put("Emerald", Material.EMERALD);
+        TRACKED.put("Gold Ingot", Material.GOLD_INGOT);
+        TRACKED.put("Iron Ingot", Material.IRON_INGOT);
+        TRACKED.put("Lapis Lazuli", Material.LAPIS_LAZULI);
+        TRACKED.put("Netherite Ingot", Material.NETHERITE_INGOT);
+        TRACKED.put("Prismarine Crystals", Material.PRISMARINE_CRYSTALS);
+        TRACKED.put("Quartz", Material.QUARTZ);
+        TRACKED.put("Redstone", Material.REDSTONE);
+        TRACKED.put("Glowstone Dust", Material.GLOWSTONE_DUST);
+        TRACKED.put("Resin Brick", Material.RESIN_BRICK);
     }
 
     private static JavaPlugin plugin;
@@ -75,6 +78,7 @@ public final class ItemReportTask {
         if (world == null) return;
 
         String timestamp = LocalDateTime.now().format(TIMESTAMP_FMT);
+        Map<UUID, Map<String, Integer>> playerCounts = new LinkedHashMap<>();
 
         for (Player player : world.getPlayers()) {
             Map<String, Integer> counts = zeroCounts();
@@ -85,13 +89,68 @@ public final class ItemReportTask {
                 if (!(block.getState() instanceof Container container)) continue;
                 addCounts(container.getInventory(), counts);
             }
+            playerCounts.put(player.getUniqueId(), counts);
+        }
 
-            int pts = calculatePoints();
-            PlayerPointsStore.set(player.getUniqueId(), player.getName(), pts);
+        Map<String, Map<UUID, Integer>> itemMatrix = new LinkedHashMap<>();
+
+        for (String key : TRACKED.keySet()) {
+            Map<UUID, Integer> row = new LinkedHashMap<>();
+            for (Map.Entry<UUID, Map<String, Integer>> e : playerCounts.entrySet()) {
+                row.put(e.getKey(), e.getValue().get(key));
+            }
+            itemMatrix.put(key, row);
+        }
+
+        Map<UUID, Double> scores = calculateScores(itemMatrix);
+
+        for (Player player : world.getPlayers()) {
+            UUID uuid = player.getUniqueId();
+            double pts = scores.getOrDefault(uuid, 0.0);
+
+            Map<String, Integer> counts = playerCounts.get(uuid);
+            PlayerPointsStore.set(uuid, player.getName(), pts);
+
             writeRow(idCounter.getAndIncrement(), player.getName(), timestamp, pts, counts);
         }
 
         PlayerPointsStore.save();
+    }
+
+    private static Map<UUID, Double> calculateScores(Map<String, Map<UUID, Integer>> items) {
+        Map<UUID, Double> scores = new LinkedHashMap<>();
+
+        for (Map.Entry<String, Map<UUID, Integer>> itemEntry : items.entrySet()) {
+            Map<UUID, Integer> playerAmounts = itemEntry.getValue();
+            double S_k = playerAmounts.values().stream().mapToDouble(Integer::doubleValue).sum();
+
+            if (S_k == 0) continue;
+
+            double weightedTotal = Math.pow(S_k, 0.5);
+
+            for (Map.Entry<UUID, Integer> e : playerAmounts.entrySet()) {
+                double w_i_k = e.getValue() / S_k;
+                scores.merge(e.getKey(), w_i_k * weightedTotal, Double::sum);
+            }
+        }
+        return scores;
+    }
+
+    static Map<String, Integer> scanWorld(World world) {
+        Map<String, Integer> totals = zeroCounts();
+
+        for (Player player : world.getPlayers()) {
+            addCounts(player.getInventory(), totals);
+
+            for (Location loc : ContainerHandler.getContainersPerPlayer(player.getUniqueId())) {
+                Block block = loc.getBlock();
+
+                if (!(block.getState() instanceof Container container)) continue;
+
+                addCounts(container.getInventory(), totals);
+            }
+        }
+        return totals;
     }
 
     private static Map<String, Integer> zeroCounts() {
@@ -112,30 +171,13 @@ public final class ItemReportTask {
         }
     }
 
-    private static int calculatePoints() {
-        return 67;
-    }
-
-    static Map<String, Integer> scanWorld(World world) {
-        Map<String, Integer> totals = zeroCounts();
-        for (Player player : world.getPlayers()) {
-            addCounts(player.getInventory(), totals);
-            for (Location loc : ContainerHandler.getContainersPerPlayer(player.getUniqueId())) {
-                Block block = loc.getBlock();
-                if (!(block.getState() instanceof Container container)) continue;
-                addCounts(container.getInventory(), totals);
-            }
-        }
-        return totals;
-    }
-
     private static void writeHeader() throws IOException {
         try (FileWriter fw = new FileWriter(csvFile, true)) {
             fw.write("id,playername,timestamp,points," + String.join(",", TRACKED.keySet()) + "\n");
         }
     }
 
-    private static void writeRow(int id, String name, String timestamp, int points, Map<String, Integer> counts) {
+    private static void writeRow(int id, String name, String timestamp, double points, Map<String, Integer> counts) {
         StringBuilder sb = new StringBuilder();
         sb.append(id).append(",").append(name).append(",").append(timestamp).append(",").append(points);
 

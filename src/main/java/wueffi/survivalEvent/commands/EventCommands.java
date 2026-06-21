@@ -9,9 +9,13 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import wueffi.survivalEvent.utils.LocationHandler;
+import wueffi.survivalEvent.utils.PlayerPointsStore;
 import wueffi.survivalEvent.utils.PlaytimeManager;
 
+import java.text.ParseException;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public final class EventCommands implements CommandExecutor, TabCompleter {
@@ -23,6 +27,7 @@ public final class EventCommands implements CommandExecutor, TabCompleter {
             case "check" -> handleCheck(sender, args);
             case "start" -> handleStart(sender);
             case "end" -> handleEnd(sender);
+            case "leaderboard" -> handleLeaderboard(sender, args);
             default -> false;
         };
     }
@@ -95,14 +100,60 @@ public final class EventCommands implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    private boolean handleLeaderboard(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("Only players can use /leaderboard.");
+            return true;
+        }
+
+        List<Map.Entry<UUID, Double>> top;
+        int count;
+
+        if (args.length < 1) {
+            top = PlayerPointsStore.getTopN(5);
+            count = 5;
+        }
+        else {
+            try {
+                count = Integer.parseInt(args[0]);
+                if (count <= 0) {
+                    sender.sendMessage("Must be greater than 0!");
+                    return true;
+                }
+                if (count > 20) {
+                    sender.sendMessage("Must be smaller than 20!");
+                    return true;
+                }
+                top = PlayerPointsStore.getTopN(count);
+            } catch (Exception e) {
+                sender.sendMessage("Could not parse Integer!");
+                return true;
+            }
+        }
+
+        String[] prefix = {"§6#1 ", "§7#2 ", "§c#3 ", "§f#4 ", "§f#5 "};
+
+        for (int i = 0; i < count; i++) {
+            Map.Entry<UUID, Double> e = top.get(i);
+            String name = PlayerPointsStore.getName(e.getKey());
+            sender.sendMessage(prefix[i] + "§f" + name + " §e" + String.format("%.2f", e.getValue()));
+        }
+        return true;
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!command.getName().equalsIgnoreCase("check") || args.length != 1) return List.of();
-        String partial = args[0].toLowerCase();
-        return Bukkit.getOnlinePlayers().stream()
-                .map(Player::getName)
-                .filter(name -> name.toLowerCase().startsWith(partial))
-                .collect(Collectors.toList());
+        if (!(command.getName().equalsIgnoreCase("check") || command.getName().equalsIgnoreCase("leaderboard")) || args.length != 1) return List.of();
+        if (command.getName().equalsIgnoreCase("check")) {
+            String partial = args[0].toLowerCase();
+            return Bukkit.getOnlinePlayers().stream()
+                    .map(Player::getName)
+                    .filter(name -> name.toLowerCase().startsWith(partial))
+                    .collect(Collectors.toList());
+        } else {
+            return List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20");
+        }
+
     }
 
     public static String formatSeconds(long total) {

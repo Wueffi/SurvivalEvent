@@ -40,7 +40,7 @@ public final class SurvivalEvent extends JavaPlugin {
         LOGGER.info("LocationHandler initialized!");
 
         EventCommands handler = new EventCommands();
-        for (String cmd : List.of("playtime", "check", "start", "end")) {
+        for (String cmd : List.of("playtime", "check", "start", "end", "leaderboard")) {
             var pluginCmd = getCommand(cmd);
             pluginCmd.setExecutor(handler);
             pluginCmd.setTabCompleter(handler);

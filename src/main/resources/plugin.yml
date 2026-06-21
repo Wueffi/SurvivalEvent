@@ -19,3 +19,6 @@ commands:
   end:
     description: End playing the survival event.
     usage: /end
+  leaderboard:
+    description: Show the leaderboard of the survival event.
+    usage: /leaderboard <integer>
