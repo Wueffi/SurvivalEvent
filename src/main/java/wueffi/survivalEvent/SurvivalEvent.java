@@ -32,6 +32,9 @@ public final class SurvivalEvent extends JavaPlugin {
         ItemReportTask.init(this);
         LOGGER.info("ItemReportTask initialized!");
 
+        PlayerPointsStore.init(this);
+        LOGGER.info("PlayerPointsStore initialized!");
+
         LocationHandler.init(this);
         Bukkit.getPluginManager().registerEvents(new LocationListener(this), this);
         LOGGER.info("LocationHandler initialized!");
@@ -55,6 +58,9 @@ public final class SurvivalEvent extends JavaPlugin {
 
         PlaytimeScoreboard.shutdown();
         LOGGER.info("PlaytimeScoreBoard shutdown!");
+
+        PlayerPointsStore.shutdown();
+        LOGGER.info("PlayerPointsStore shutdown!");
 
         ItemReportTask.shutdown();
         LOGGER.info("ItemReportTask shutdown!");

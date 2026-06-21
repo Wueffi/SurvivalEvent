@@ -17,7 +17,6 @@ import wueffi.survivalEvent.commands.EventCommands;
 import java.util.*;
 
 public final class PlaytimeScoreboard {
-
     private static final long TICK_INTERVAL = 20L;
     private static final int SNAPSHOT_INTERVAL = 500;
     private static final int VIEW_COUNT = 3;
@@ -28,7 +27,6 @@ public final class PlaytimeScoreboard {
     private static int tickCounter = 0;
     private static int viewIndex = 0;
     private static Map<String, Integer> globalItemTotals = new LinkedHashMap<>();
-    private static Map<UUID, Integer> playerPointsSnapshot = new LinkedHashMap<>();
 
     private PlaytimeScoreboard() {}
 
@@ -67,12 +65,7 @@ public final class PlaytimeScoreboard {
     }
 
     private static void refreshSnapshot(World world) {
-        plugin.getLogger().info("Scanning World!");
         globalItemTotals = ItemReportTask.scanWorld(world);
-        playerPointsSnapshot.clear();
-        for (Player player : world.getPlayers()) {
-            playerPointsSnapshot.put(player.getUniqueId(), ItemReportTask.getPlayerPoints(player));
-        }
     }
 
     public static void update(Player player) {
@@ -94,7 +87,7 @@ public final class PlaytimeScoreboard {
         obj.setDisplaySlot(DisplaySlot.SIDEBAR);
 
         long secondsLeft = Math.max(0L, 7200 - PlaytimeManager.getSecondsToday(player));
-        int pts = playerPointsSnapshot.getOrDefault(player.getUniqueId(), 0);
+        int pts = PlayerPointsStore.get(player.getUniqueId());
 
         obj.getScore(" ").setScore(0);
         obj.getScore("§a" + EventCommands.formatSeconds(secondsLeft)).setScore(1);
@@ -114,14 +107,14 @@ public final class PlaytimeScoreboard {
     }
 
     private static void buildLeaderboard(Objective obj, int base) {
-        List<Map.Entry<UUID, Integer>> sorted = new ArrayList<>(playerPointsSnapshot.entrySet());
-        sorted.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
-        int count = Math.min(sorted.size(), 5);
+        List<Map.Entry<UUID, Integer>> top = PlayerPointsStore.getTopN(5);
+        int count = top.size();
+
         String[] prefix = {"§6#1 ", "§7#2 ", "§c#3 ", "§f#4 ", "§f#5 "};
+
         for (int i = 0; i < count; i++) {
-            Map.Entry<UUID, Integer> e = sorted.get(i);
-            Player p = Bukkit.getPlayer(e.getKey());
-            String name = p != null ? p.getName() : "?";
+            Map.Entry<UUID, Integer> e = top.get(i);
+            String name = PlayerPointsStore.getName(e.getKey());
             obj.getScore(prefix[i] + "§f" + name + " §e" + e.getValue()).setScore(base + count - 1 - i);
         }
     }
@@ -129,7 +122,9 @@ public final class PlaytimeScoreboard {
     private static void buildMostCollected(Objective obj, int base) {
         List<Map.Entry<String, Integer>> sorted = new ArrayList<>(globalItemTotals.entrySet());
         sorted.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+
         int count = Math.min(sorted.size(), 5);
+
         for (int i = 0; i < count; i++) {
             Map.Entry<String, Integer> e = sorted.get(i);
             obj.getScore("§b#" + i + " " + e.getKey() + "§7: §f" + e.getValue()).setScore(base + count - 1 - i);
@@ -140,7 +135,9 @@ public final class PlaytimeScoreboard {
         List<Map.Entry<String, Integer>> entries = new ArrayList<>(globalItemTotals.entrySet());
         entries.removeIf(e -> e.getValue() < 1);
         entries.sort(Map.Entry.comparingByValue());
+
         int count = Math.min(entries.size(), 5);
+
         for (int i = count; i >= 0; i--) {
             Map.Entry<String, Integer> e = entries.get(i);
             obj.getScore("§c#" + i + " " + e.getKey() + "§7: §f" + e.getValue()).setScore(base + count - 1 - i);

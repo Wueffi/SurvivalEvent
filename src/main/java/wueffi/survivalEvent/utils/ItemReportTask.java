@@ -86,8 +86,12 @@ public final class ItemReportTask {
                 addCounts(container.getInventory(), counts);
             }
 
-            writeRow(idCounter.getAndIncrement(), player.getName(), timestamp, calculatePoints(), counts);
+            int pts = calculatePoints();
+            PlayerPointsStore.set(player.getUniqueId(), player.getName(), pts);
+            writeRow(idCounter.getAndIncrement(), player.getName(), timestamp, pts, counts);
         }
+
+        PlayerPointsStore.save();
     }
 
     private static Map<String, Integer> zeroCounts() {
@@ -123,10 +127,6 @@ public final class ItemReportTask {
             }
         }
         return totals;
-    }
-
-    static int getPlayerPoints(Player player) {
-        return calculatePoints();
     }
 
     private static void writeHeader() throws IOException {
