@@ -87,7 +87,7 @@ public final class PlaytimeScoreboard {
         obj.setDisplaySlot(DisplaySlot.SIDEBAR);
 
         long secondsLeft = Math.max(0L, 7200 - PlaytimeManager.getSecondsToday(player));
-        int pts = PlayerPointsStore.get(player.getUniqueId());
+        double pts = PlayerPointsStore.get(player.getUniqueId());
 
         obj.getScore(" ").setScore(0);
         obj.getScore("§a" + EventCommands.formatSeconds(secondsLeft)).setScore(1);
@@ -107,15 +107,15 @@ public final class PlaytimeScoreboard {
     }
 
     private static void buildLeaderboard(Objective obj, int base) {
-        List<Map.Entry<UUID, Integer>> top = PlayerPointsStore.getTopN(5);
+        List<Map.Entry<UUID, Double>> top = PlayerPointsStore.getTopN(5);
         int count = top.size();
 
         String[] prefix = {"§6#1 ", "§7#2 ", "§c#3 ", "§f#4 ", "§f#5 "};
 
         for (int i = 0; i < count; i++) {
-            Map.Entry<UUID, Integer> e = top.get(i);
+            Map.Entry<UUID, Double> e = top.get(i);
             String name = PlayerPointsStore.getName(e.getKey());
-            obj.getScore(prefix[i] + "§f" + name + " §e" + e.getValue()).setScore(base + count - 1 - i);
+            obj.getScore(prefix[i] + "§f" + name + " §e" + String.format("%.2f", e.getValue())).setScore(base + count - 1 - i);
         }
     }
 
@@ -127,7 +127,7 @@ public final class PlaytimeScoreboard {
 
         for (int i = 0; i < count; i++) {
             Map.Entry<String, Integer> e = sorted.get(i);
-            obj.getScore("§b#" + i + " " + e.getKey() + "§7: §f" + e.getValue()).setScore(base + count - 1 - i);
+            obj.getScore("§b#" + (i + 1) + " " + e.getKey() + "§7: §f" + e.getValue()).setScore(base + count - 1 - i);
         }
     }
 
@@ -137,10 +137,9 @@ public final class PlaytimeScoreboard {
         entries.sort(Map.Entry.comparingByValue());
 
         int count = Math.min(entries.size(), 5);
-
-        for (int i = count; i >= 0; i--) {
+        for (int i = 0; i < count; i++) {
             Map.Entry<String, Integer> e = entries.get(i);
-            obj.getScore("§c#" + i + " " + e.getKey() + "§7: §f" + e.getValue()).setScore(base + count - 1 - i);
+            obj.getScore("§c#" + (i + 1) + " " + e.getKey() + "§7: §f" + e.getValue()).setScore(base + count - 1 - i);
         }
     }
 }
