@@ -131,12 +131,21 @@ public final class EventCommands implements CommandExecutor, TabCompleter {
             }
         }
 
-        String[] prefix = {"§6#1 ", "§7#2 ", "§c#3 ", "§f#4 ", "§f#5 "};
+        for (int i = 0; i < Math.min(count, top.size()); i++) {
+            String prefix = switch (i) {
+                case 0 -> "§6#1 ";
+                case 1 -> "§7#2 ";
+                case 2 -> "§c#3 ";
+                default -> "§f#" + (i + 1) + " ";
+            };
 
-        for (int i = 0; i < count; i++) {
             Map.Entry<UUID, Double> e = top.get(i);
             String name = PlayerPointsStore.getName(e.getKey());
-            sender.sendMessage(prefix[i] + "§f" + name + " §e" + String.format("%.2f", e.getValue()));
+            sender.sendMessage(prefix + "§f" + name + " §e" + String.format("%.2f", e.getValue()));
+        }
+
+        if (top.isEmpty()) {
+            sender.sendMessage("No leaderboard players yet!");
         }
         return true;
     }
